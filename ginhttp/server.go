@@ -22,6 +22,7 @@ const defaultComponentName = "net/http"
 type mwOptions struct {
 	opNameFunc    func(r *http.Request) string
 	spanObserver  func(span opentracing.Span, r *http.Request)
+	ginObserver   func(span opentracing.Span, c *gin.Context)
 	urlTagFunc    func(u *url.URL) string
 	componentName string
 }
@@ -50,6 +51,12 @@ func MWComponentName(componentName string) MWOption {
 func MWSpanObserver(f func(span opentracing.Span, r *http.Request)) MWOption {
 	return func(options *mwOptions) {
 		options.spanObserver = f
+	}
+}
+
+func MWGinContextSpanObserver(f func(span opentracing.Span, c *gin.Context)) MWOption {
+	return func(options *mwOptions) {
+		options.ginObserver = f
 	}
 }
 
@@ -86,6 +93,7 @@ func Middleware(tr opentracing.Tracer, options ...MWOption) gin.HandlerFunc {
 		ext.HTTPMethod.Set(sp, c.Request.Method)
 		ext.HTTPUrl.Set(sp, opts.urlTagFunc(c.Request.URL))
 		opts.spanObserver(sp, c.Request)
+		opts.ginObserver(sp, c)
 
 		// set component name, use "net/http" if caller does not specify
 		componentName := opts.componentName
